@@ -1,7 +1,7 @@
 set.seed(25072023)
 
-setwd(paste("C:/Users/ezequ/OneDrive - Fundacao Getulio Vargas - FGV/Mentoria/",
-            "joint-models-in-stan", sep = ""))
+setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
+            "joint-models-in-stan", sep = "/"))
 
 source("code/generate_data.R")
 

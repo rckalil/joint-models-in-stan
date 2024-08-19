@@ -1,0 +1,109 @@
+# Set working directory
+setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/", "joint-models-in-stan", sep = "/"))
+
+# Load required libraries
+library("rstan")
+
+# Define parameters for integration
+t0 <- 1
+t1 <- 2
+
+# Define the function to compare areas
+compare_areas <- function(alfa, beta, gamma, t0, t1) {
+  # Define the integrand function
+  integrand <- function(u) {
+    u^(gamma - 1) * exp(alfa * beta * u)
+  }
+  
+  # Perform the integration
+  area <- integrate(integrand, t0, t1)
+  R_area <- area$value
+  print(paste("R area:", R_area))
+  
+  # Define data to pass to Stan model
+  data_list <- list(
+    t0 = t0,
+    t1 = t1,
+    alfa = alfa,
+    beta = beta,
+    gamma = gamma
+  )
+  
+  ## Compile the Stan model
+  #stan_model_obj <- stan_model("code/integrate_example.stan")
+#  
+#  # Run the Stan model
+#  fit <- sampling(stan_model_obj, data = data_list, iter = 1, chains = 1, algorithm = "Fixed_param")
+#  
+#  # Extract the summary of the fit object
+#  fit_summary <- summary(fit)
+#  
+#  # Access the mean value of 'area' from the summary
+#  STAN_area <- fit_summary$summary["area", "mean"]
+#  
+#  #STAN_error <- fit_summary$summary["area", ]
+#  
+#  # Print the mean area
+#  print(paste("Stan area:", STAN_area))
+#  #print(fit_summary)
+  
+  STAN_area <- 0
+  
+  # Return the areas for comparison
+  return(list(R_area = R_area, STAN_area = STAN_area))
+}
+
+# Generate values for alfa, beta, and gamma
+alfa_values <- seq(-10, 10, length.out = 10)
+beta_values <- seq(-10, 10, length.out = 10)
+gamma_values <- seq(0.1, 10, length.out = 5)
+
+# Initialize list to store results
+areas_list <- list()
+
+# Loop over all combinations of alfa, beta, and gamma
+i = 0
+for (alfa in alfa_values) {
+  for (beta in beta_values) {
+    for (gamma in gamma_values) {
+      if (i>=0){
+        areas <- compare_areas(alfa, beta, gamma, t0, t1)
+        areas_list[[paste("alfa", alfa, "beta", beta, "gamma", gamma, sep = "_")]] <- areas
+        output_file <- file("r_area.txt", open = "a")
+        # Initialize variables to store the last key and its difference
+        
+        last_key <- NULL
+        last_difference <- NULL
+        for (key in names(areas_list)) {
+          R_area <- areas_list[[key]]$R_area
+          STAN_area <- areas_list[[key]]$STAN_area
+          # Store the last key and its difference
+          last_key <- key
+          last_difference <- R_area - STAN_area
+        }
+        # After the loop, write only the last key's difference to the file
+        #if (!is.null(last_key) && !is.null(last_difference)) {
+        #  cat(paste(last_key, "Difference:", last_difference, "\n"), file = output_file)
+        #}
+        if (!is.null(last_key) && !is.null(R_area)) {
+          cat(paste(last_key, "Difference:", R_area, "\n"), file = output_file)
+        }
+        
+        close(output_file)
+      }
+      i = i+1
+    }
+  }
+}
+
+# Open a connection to the text file for writing
+#output_file <- file("area_comparisons.txt", open = "wt")
+
+# Print the differences between R areas and Stan areas for all combinations
+#for (key in names(areas_list)) {
+#  R_area <- areas_list[[key]]$R_area
+#  STAN_area <- areas_list[[key]]$STAN_area
+#  cat(paste(key, "Difference:", R_area - STAN_area, "\n"), file = output_file)
+  
+#}
+#close(output_file)

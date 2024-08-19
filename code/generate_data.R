@@ -1,10 +1,10 @@
 library("MASS") 
 library("cmdstanr")
 
-setwd(paste("C:/Users/ezequ/OneDrive - Fundacao Getulio Vargas - FGV/Mentoria/",
-            "joint-models-in-stan", sep = ""))
+setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
+            "joint-models-in-stan", sep = "/"))
 
-#########################################################################
+########################################################################
 # Joint model simulation
 #########################################################################
 # N: sample size
@@ -145,3 +145,4 @@ sim_data <- function(N,
   save(event_data, file = "data/event_data.RData")
   save(joint_data, file = "data/joint_data.RData")
 }
+

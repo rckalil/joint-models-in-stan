@@ -5,23 +5,39 @@ setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/", "joint-models-in-stan", s
 library("rstan")
 
 # Define parameters for integration
-t0 <- 1
-t1 <- 2
+t0 <- 0
+t1 <- 1
+
+anal_sol <- function(alfa, beta, gamma, t0, t1) {
+  lgamma(gamma) - gamma * log(abs(alfa * beta)) + 
+    pgamma(t1, shape = gamma,
+           rate  = abs(alfa * beta),
+           log.p = TRUE)
+}
+
 
 # Define the function to compare areas
-compare_areas <- function(alfa, beta, gamma, t0, t1) {
-  # Define the integrand function
+compare_areas <- function(alfa, beta, gamma, t0, t1, stan_model_obj) {
+  # Definir a função de integração para R
   integrand <- function(u) {
-    u^(gamma - 1) * exp(alfa * beta * u)
+    (gamma - 1) * log(u) + alfa * beta * u
   }
   
-  # Perform the integration in R
-  area <- integrate(integrand, t0, t1)
-  R_area <- area$value
-  R_error <- area$abs.error  # Absolute error from R integration
-  print(paste("R area:", R_area))
+  # Realizar a integração em R
+  area <- tryCatch({
+    integrate(integrand, t0, t1)
+  }, error = function(e) {
+    message("Erro na integração em R: ", e)
+    return(NULL)
+  })
   
-  # Define data to pass to Stan model
+  if (is.null(area)) return(NULL)
+  
+  R_area <- area$value
+  R_error <- area$abs.error  # Erro absoluto da integração em R
+  print(paste("Área calculada em R:", R_area))
+  
+  # Dados para o modelo Stan
   data_list <- list(
     t0 = t0,
     t1 = t1,
@@ -30,22 +46,32 @@ compare_areas <- function(alfa, beta, gamma, t0, t1) {
     gamma = gamma
   )
   
-  # Compile the Stan model
-  stan_model_obj <- stan_model("code/k_integrate_example.stan")
+  # Executar o modelo Stan
+  fit <- tryCatch({
+    sampling(stan_model_obj, data = data_list, iter = 1, chains = 1, algorithm = "Fixed_param")
+  }, error = function(e) {
+    message("Erro na amostragem Stan: ", e)
+    return(NULL)
+  })
   
-  # Run the Stan model
-  fit <- sampling(stan_model_obj, data = data_list, iter = 1, chains = 1, algorithm = "Fixed_param")
+  if (is.null(fit)) return(NULL)
   
-  # Extract the summary of the fit object
+  # Extrair o resumo do objeto fit
   fit_summary <- summary(fit)
   
-  # Access the mean value of 'area' from the summary
+  # Acessar o valor médio da 'área' no resumo
   STAN_area <- fit_summary$summary["area", "mean"]
-  STAN_error <- fit_summary$summary["area", "sd"]  # Standard deviation as a measure of uncertainty
   
-  # Return the areas and errors for comparison
-  return(list(R_area = R_area, R_error = R_error, STAN_area = STAN_area, STAN_error = STAN_error))
+  # Solução analítica (integral entre 0 e 1)
+  AS_area <- anal_sol(alfa, beta, gamma, t0, t1)
+  
+  # Retornar as áreas e erros para comparação
+  return(list(R_area = R_area, R_error = R_error, STAN_area = STAN_area, AS_area = AS_area))
 }
+
+
+# Compile the Stan model once
+stan_model_obj <- stan_model("code/k_integrate_example.stan")
 
 # Generate values for alfa, beta, and gamma
 alfa_values <- seq(-10, 10, length.out = 10)
@@ -69,29 +95,40 @@ start_index <- num_lines + 1
 i <- 0
 
 # Loop over all combinations of alfa, beta, and gamma
-for (alfa in alfa_values) {
-  for (beta in beta_values) {
-    for (gamma in gamma_values) {
-      i <- i + 1
-      if (i < start_index) {
-        next
+while (t1 <= 1) {
+  for (alfa in alfa_values) {
+    for (beta in beta_values) {
+      for (gamma in gamma_values) {
+        i <- i + 1
+        #if (i < start_index) {
+        #  next
+        #}
+        areas <- compare_areas(alfa, beta, gamma, t0, t1, stan_model_obj)
+        
+        if (is.null(areas)) {
+          next  # Skip if there was an error in R or Stan
+        }
+        
+        areas_list[[paste("alfa", alfa, "beta", beta, "gamma", gamma, sep = "_")]] <- areas
+        output_file <- file(output_file_path, open = "a")
+        
+        last_key <- paste("alfa", alfa, "beta", beta, "gamma", gamma, sep = "_")
+        R_area <- areas$R_area
+        STAN_area <- areas$STAN_area
+        difference <- R_area - STAN_area
+        R_error <- areas$R_error
+        STAN_error <- areas$STAN_error
+        AS_area <- areas$AS_area
+        
+        # Write the key, R_area, STAN_area, difference, and errors to the file
+        cat(paste(last_key, ", ", t0, ", ", t1, ", ", AS_area, ", ",  R_area, ", ", STAN_area, 
+                  ", ", R_error, ", ", R_area-STAN_area, ", ", R_area-AS_area, ", ", STAN_area-AS_area, "\n"), file = output_file)
+        
+        close(output_file)
+        gc()
       }
-      areas <- compare_areas(alfa, beta, gamma, t0, t1)
-      areas_list[[paste("alfa", alfa, "beta", beta, "gamma", gamma, sep = "_")]] <- areas
-      output_file <- file(output_file_path, open = "a")
-      
-      last_key <- paste("alfa", alfa, "beta", beta, "gamma", gamma, sep = "_")
-      R_area <- areas$R_area
-      STAN_area <- areas$STAN_area
-      difference <- R_area - STAN_area
-      R_error <- areas$R_error
-      STAN_error <- areas$STAN_error
-      
-      # Write the key, R_area, STAN_area, difference, and errors to the file
-      cat(paste(last_key, "R:", R_area, "Stan:", STAN_area, "Difference:", difference, 
-                "R_Error:", R_error, "Stan_Error:", STAN_error, "\n"), file = output_file)
-      
-      close(output_file)
     }
   }
+  t1 <- t1 + 1
 }
+

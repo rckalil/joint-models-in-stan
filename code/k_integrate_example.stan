@@ -4,7 +4,7 @@ functions {
     real alfa = theta[1];
     real beta = theta[2];
     real gamma = theta[3];
-    return pow(u, gamma - 1) * exp(alfa * beta * u);
+    return (gamma - 1) * log(u) + alfa * beta * u;
   }
 }
 

@@ -4,20 +4,6 @@ library("cmdstanr")
 setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
             "joint-models-in-stan", sep = "/"))
 
-########################################################################
-# Joint model simulation
-#########################################################################
-# N: sample size
-# lambda > 0: scale for Weibull baseline hazard 
-# rho_s > 0: shape for Weibull baseline hazard
-# cens_time: censored time
-# beta: vector of covariates
-# gamma: vector of association coefficients
-# var_u: vector with random effects variances
-# var_z: measurement errors variance
-# rho: correlation between u_1 and u_2
-# n_rep_obs: number of repeated observations for each subject
-
 sim_data <- function(N, 
                      lambda, 
                      rho_s, 
@@ -59,16 +45,14 @@ sim_data <- function(N,
   # Survival process
   ###################
   
-  # Simulating the times to event
-
   v <- runif(N)
   id_times <- c(1:N)
   
   for(i in 1:N){
     haz <- function(s) {
       lres <- log(lambda) + log(rho_s) + (rho_s-1)*log(s) + beta_21*x[i] +
-              gamma_1*u_1[i] + gamma_2*u_2[i] + gamma_3*(u_1[i] + u_2[i]*s) +
-              u_3[i]
+        gamma_1*u_1[i] + gamma_2*u_2[i] + gamma_3*(u_1[i] + u_2[i]*s) +
+        u_3[i]
       return(exp(lres))
     }
     
@@ -83,7 +67,7 @@ sim_data <- function(N,
   
   status <- as.vector(times < cens_time)
   times <- as.vector(ifelse(status, times, cens_time))
-  status <- as.numeric(status) # Censoring indicators (1=Observed, 0=Censored)
+  status <- as.numeric(status)
   
   ##############################
   # Longitudinal process  
@@ -91,59 +75,56 @@ sim_data <- function(N,
   
   obs_times_out <- vector()
   for(i in 1:N){
-    # number of repeated observations for each individual
     obs_times <- seq(0, times[i], by = n_rep_obs) 
     
     x_t <- rep(x[i], length(obs_times))
-
+    
     x_total <- c(x_total, x_t)
     z = rnorm(length(obs_times), 0, sqrt(var_z))
     y_t <- beta_11 + beta_12*obs_times + beta_13*rep(x[i], length(obs_times)) + 
-          rep(u_1[i], length(obs_times)) + rep(u_2[i], length(obs_times))*
-          obs_times + z
-
+      rep(u_1[i], length(obs_times)) + rep(u_2[i], length(obs_times))*
+      obs_times + z
+    
     long_out <- c(long_out, y_t)
-    id <- c(id,rep(i, length(obs_times)))
+    id <- c(id, rep(i, length(obs_times)))
     obs_times_out <- c(obs_times_out, obs_times)
   }
   
-  #---------------------------------------------------------------------
-  # Creating the longitudinal and survival processes object
-  #---------------------------------------------------------------------
+  ##############################
+  # Salvando os dados
+  ##############################
   N <- length(id_times)                # number of subjects
   n_obs <- length(long_out)            # total number of observations
-  x <- as.matrix(x,1)                  # unique x
+  x_total <- x_total                   # repeated x for longitudinal data
   obs_times <- obs_times_out           # visit times for repeated observations
   y <- long_out                        # longitudinal outcomes
-  ind_unc_times <- which(status==1)    # uncensored times indicator
+  ind_unc_times <- which(status == 1)  # uncensored times indicator
   n_unc_times <- length(ind_unc_times) # number of uncensored times
   
-  long_data <- list(y=y,
-                   N=N,
-                   n_obs=n_obs,
-                   x=x,
-                   id=id,
-                   obs_times=obs_times)
+  # Expandir `times` e `status` para o número de observações longitudinais
+  times_expanded <- rep(times, times = table(id))  # Replicar `times` por sujeito
+  status_expanded <- rep(status, times = table(id))  # Replicar `status` por sujeito
   
-  event_data <- list(N=N,
-                     x=x,
-                     times=times,
-                     ind_unc_times=ind_unc_times,
-                     n_unc_times=n_unc_times)
+  # Salvando os dados longitudinais
+  long_data <- data.frame(id = id,
+                          y = y,
+                          obs_times = obs_times)
+  write.csv(long_data, file = "data/long_data.csv", row.names = FALSE)
   
-  joint_data <- list(N=N,
-                     n_obs=n_obs,
-                     y=y,
-                     id=id,
-                     obs_times=obs_times,
-                     x=x,
-                     times=times,
-                     ind_unc_times=ind_unc_times,
-                     n_unc_times=n_unc_times)
+  # Salvando os dados de eventos de sobrevivência
+  event_data <- data.frame(id = id_times,
+                           x = x,
+                           times = times,
+                           status = status)
+  write.csv(event_data, file = "data/event_data.csv", row.names = FALSE)
   
-  save(long_data, file = "data/long_data.RData")
-  save(event_data, file = "data/event_data.RData")
-  save(joint_data, file = "data/joint_data.RData")
+  # Salvando os dados conjuntos
+  joint_data <- data.frame(id = id,
+                           y = y,
+                           obs_times = obs_times,
+                           x = x_total,
+                           times = times_expanded,  # Usar a versão expandida
+                           status = status_expanded)  # Usar a versão expandida
+  write.csv(joint_data, file = "data/joint_data.csv", row.names = FALSE)
   
 }
-

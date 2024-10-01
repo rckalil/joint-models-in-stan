@@ -1,9 +1,9 @@
 set.seed(25072023)
 
-setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
-            "joint-models-in-stan", sep = "/"))
+#setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
+#            "joint-models-in-stan", sep = "/"))
 
-source("code/k_generate_data.R")
+source("code/generate_data.R")
 
 N<- 250
 lambda <- 0.4
@@ -66,3 +66,4 @@ joint_posterior_samples$summary(c("beta_1",
                                   "var_u", 
                                   "rho", 
                                   "var_u3"))
+

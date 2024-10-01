@@ -1,11 +1,9 @@
-library(JMbayes)
+# Carregar pacotes necessários
+library(JMbayes2)
 library(nlme)
 library(survival)
 
 set.seed(25072023)
-
-#setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
-#            "joint-models-in-stan", sep = "/"))
 
 # Carregar os dados simulados
 load("data/joint_data.RData")
@@ -24,25 +22,22 @@ surv_data <- data.frame(id = 1:joint_data$N,
                         status = status, 
                         x = joint_data$x)
 
-# Ajustar o modelo longitudinal
+# Ajustar o modelo longitudinal usando lme() do nlme
 lmeFit <- lme(fixed = y ~ time + x, 
               data = long_data, 
               random = ~ time | id)
 
-# Ajustar o modelo de sobrevivência
+# Ajustar o modelo de sobrevivência (Cox)
 coxFit <- coxph(Surv(time, status) ~ x, data = surv_data, x = TRUE)
 
-# Ajustar o modelo conjunto
-jointFit <- jointModelBayes(lmeFit, coxFit, timeVar = "time", n.iter = 10000)
+# Ajustar o modelo conjunto usando JMbayes2
+jointFit <- jm(coxFit, lmeFit, time_var = "time", n_iter = 10000, cores=1)
 
 # Resumo dos resultados
-summary(jointFit, include.baseHazCoefs = TRUE)
+summary(jointFit)
 
-# Verify obj 120, 134, 241
-
-# Ver dados para os ids 120, 134, 241
+# Verificar os dados para os ids 120, 134, 241
 ids_to_check <- c(1, 2, 120, 134, 241, 243, 244)
-status_to_check <- c(0)
 
 # Dados longitudinais para os ids selecionados
 long_data_subset <- subset(joint_data, id %in% ids_to_check)

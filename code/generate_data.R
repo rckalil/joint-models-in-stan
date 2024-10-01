@@ -1,8 +1,8 @@
 library("MASS") 
 library("cmdstanr")
 
-setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
-            "joint-models-in-stan", sep = "/"))
+#setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
+#            "joint-models-in-stan", sep = "/"))
 
 ########################################################################
 # Joint model simulation

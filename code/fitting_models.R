@@ -1,4 +1,5 @@
 set.seed(25072023)
+setwd(paste("/home/kalil/Documents/", "joint-models-in-stan", sep="/"))
 
 #setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
 #            "joint-models-in-stan", sep = "/"))

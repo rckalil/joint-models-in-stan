@@ -2,19 +2,21 @@
 library(JMbayes2)
 library(nlme)
 library(survival)
+library(coxme)
 
 set.seed(25072023)
+setwd(paste("/home/kalil/Documents/", "joint-models-in-stan", sep="/"))
 
 # Carregar os dados simulados
 load("data/joint_data.RData")
 
-# Organizando os dados longitudinais
-long_data <- data.frame(id = joint_data$id, 
-                        time = joint_data$obs_times, 
-                        y = joint_data$y, 
+# Organizar dados longitudinais
+long_data <- data.frame(id = joint_data$id,
+                        time = joint_data$obs_times,
+                        y = joint_data$y,
                         x = joint_data$x[joint_data$id])
 
-# Organizando os dados de sobrevivência
+# Organizar dados de sobrevivência
 status <- rep(0, length(joint_data$times))
 status[joint_data$ind_unc_times] <- 1
 surv_data <- data.frame(id = 1:joint_data$N, 
@@ -22,29 +24,63 @@ surv_data <- data.frame(id = 1:joint_data$N,
                         status = status, 
                         x = joint_data$x)
 
-# Ajustar o modelo longitudinal usando lme() do nlme
+# Ajuste do modelo longitudinal usando lme() do nlme
 lmeFit <- lme(fixed = y ~ time + x, 
               data = long_data, 
               random = ~ time | id)
 
-# Ajustar o modelo de sobrevivência (Cox)
+# Ajuste do modelo de sobrevivência (Cox)
 coxFit <- coxph(Surv(time, status) ~ x, data = surv_data, x = TRUE)
 
-# Ajustar o modelo conjunto usando JMbayes2
-jointFit <- jm(coxFit, lmeFit, time_var = "time", n_iter = 10000, cores=1)
+# Ajuste do modelo conjunto usando JMbayes2
+#jointFit <- jm(coxFit, lmeFit, time_var = "time", n_iter = 10000, cores = 1)
+jointFit <- jm(
+  coxFit, 
+  lmeFit, 
+  time_var = "time", 
+  assoc = list(
+    value = ~ u1 + u2 * time,   # Incluir intercepto e inclinação no risco
+    slope = ~ u2,               # Incluir o efeito da inclinação
+    interaction = ~ u1 + u2     # Incluir interação
+  ),
+  assoc_type = "AR",
+  n_iter = 10000,
+  cores = 1
+)
 
-# Resumo dos resultados
-summary(jointFit)
+# Extração dos parâmetros estimados
+joint_summary <- summary(jointFit)
+long_params <- fixef(jointFit)       # Parâmetros longitudinais beta_1
+surv_params <- coef(jointFit)        # Parâmetro beta_21 e gamma
+ranef_params <- ranef(jointFit)      # Efeitos aleatórios u_1, u_2 e variância associada
 
-# Verificar os dados para os ids 120, 134, 241
-ids_to_check <- c(1, 2, 120, 134, 241, 243, 244)
+# Exibir estimativas dos parâmetros
+print("Resumo do Modelo Conjunto:")
+print(joint_summary)
 
-# Dados longitudinais para os ids selecionados
-long_data_subset <- subset(joint_data, id %in% ids_to_check)
-print("Dados longitudinais para os ids 120, 134, 241:")
-print(long_data_subset)
+print("Parâmetros Longitudinais:")
+print(long_params)
 
-# Dados de sobrevivência para os ids selecionados
-surv_data_subset <- subset(joint_data, id %in% ids_to_check)
-print("Dados de sobrevivência para os ids 120, 134, 241:")
-print(surv_data_subset)
+print("Parâmetros do Modelo de Sobrevivência:")
+print(surv_params)
+
+print("Efeitos Aleatórios:")
+print(ranef_params)
+# Calcular a média de cada coluna (u_1 e u_2)
+mean_u <- colMeans(ranef_params)
+# Calcular o desvio padrão de cada coluna (u_1 e u_2)
+sd_u <- apply(ranef_params, 2, sd)
+# Exibir resultados
+print("Média dos efeitos aleatórios:")
+print(mean_u)
+print("Desvio padrão dos efeitos aleatórios:")
+print(sd_u)
+
+# Obter variâncias e correlações estimadas
+var_estimates <- joint_summary$sigma    # Variância de u_1 e u_2 (var_u)
+print("Variância e Correlação dos Efeitos Aleatórios:")
+print(var_estimates)
+
+traceplot(jointFit)
+
+

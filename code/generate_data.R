@@ -1,11 +1,11 @@
 library("MASS") 
 library("cmdstanr")
 
-set.seed(25072023)
-setwd(paste("/home/kalil/Documents/", "joint-models-in-stan", sep="/"))
+set_cmdstan_path("C:/Users/rodri/AppData/Local/Temp/Rtmpcv9Egx/downloaded_packages")
 
-#setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
-#            "joint-models-in-stan", sep = "/"))
+set.seed(25072023)
+# setwd(paste("C:/Users/rodri/Documents/joint-models-in-stan/", "joint-models-in-stan", sep="/"))
+
 
 ########################################################################
 # Joint model simulation

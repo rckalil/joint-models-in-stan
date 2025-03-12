@@ -1,11 +1,7 @@
 set.seed(25072023)
-setwd(paste("/home/kalil/Documents/", "joint-models-in-stan", sep="/"))
-
-#setwd(paste("/home/kalil/Documents/Graduacao/FGV/IC/",
-#            "joint-models-in-stan", sep = "/"))
 
 source("code/generate_data.R")
-
+set_cmdstan_path("C:/Users/rodri/AppData/Local/Temp/Rtmpcv9Egx/downloaded_packages")
 N<- 250
 lambda <- 0.4
 rho_s <- 0.7
@@ -16,6 +12,8 @@ var_u <- c(0.5,1,0.25)
 var_z <- 0.25
 rho <- 0
 n_rep_obs <- 0.5
+
+print("dhdh")
 
 sim_data(N, 
          lambda, 
@@ -28,7 +26,11 @@ sim_data(N,
          rho, 
          n_rep_obs)
 
+print("dn")
+
 load("data/joint_data.RData")
+
+print("Loaded data")
 
 long_model <- cmdstan_model("code/long_model.stan")
 long_posterior_samples <- long_model$sample(data = joint_data,
@@ -38,7 +40,7 @@ long_posterior_samples$summary(c("beta_1",
                                  "var_z",
                                  "var_u", 
                                  "rho"))
-
+print("Long model fitted")
 
 event_model <- cmdstan_model("code/event_model.stan")
 event_posterior_samples <- event_model$sample(data = joint_data, 
@@ -49,6 +51,8 @@ event_posterior_samples$summary(c("beta_21",
                                   "rho_s",
                                   "var_u3"))
 
+print("Event model fitted")
+
 
 joint_model <- cmdstan_model("code/joint_model.stan")
 
@@ -58,6 +62,9 @@ joint_posterior_samples <- joint_model$sample(data = joint_data,
                                               parallel_chains = 4,
                                               iter_warmup = 500,
                                               iter_sampling = 500)
+                                            
+print("Joint model fitted")
+
 joint_posterior_samples$summary(c("beta_1", 
                                   "beta_21", 
                                   "gamma", 
@@ -68,3 +75,13 @@ joint_posterior_samples$summary(c("beta_1",
                                   "rho", 
                                   "var_u3"))
 
+
+print(joint_posterior_samples$summary(c("beta_1", 
+                                        "beta_21", 
+                                        "gamma", 
+                                        "lambda", 
+                                        "rho_s", 
+                                        "var_z", 
+                                        "var_u", 
+                                        "rho", 
+                                        "var_u3")))

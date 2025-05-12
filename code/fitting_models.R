@@ -1,7 +1,8 @@
 set.seed(25072023)
 
+setwd("C:/Users/rodri/Documents/joint-models-in-stan/")
 source("code/generate_data.R")
-set_cmdstan_path("C:/Users/rodri/AppData/Local/Temp/Rtmpcv9Egx/downloaded_packages")
+set_cmdstan_path("C:/Users/rodri/.cmdstan/cmdstan-2.36.0")
 N<- 250
 lambda <- 0.4
 rho_s <- 0.7
@@ -13,7 +14,7 @@ var_z <- 0.25
 rho <- 0
 n_rep_obs <- 0.5
 
-print("dhdh")
+print("Parameters chosen")
 
 sim_data(N, 
          lambda, 
@@ -26,7 +27,7 @@ sim_data(N,
          rho, 
          n_rep_obs)
 
-print("dn")
+print("Simulation runned")
 
 load("data/joint_data.RData")
 
